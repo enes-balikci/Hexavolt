@@ -2,7 +2,7 @@ import requests
 import json
 import time
 
-API_TOKEN = "BURAYA_KENDI_PAPPERS_API_KEY'INI_YAZ"  # https://pappers.fr/api adresinden ücretsiz alabilirsin
+API_TOKEN = "6c44c2dfa2ee38af8d0757de2b686013f542d1a817cd44b7"  # https://pappers.fr/api adresinden ücretsiz alabilirsin
 NAF_CODE = "4669A"  # Commerce de gros de matériel électrique
 PER_PAGE = 100
 MAX_PAGES = 1000  # Pappers limiti, toplamda 100.000 şirket çekebilirsin
