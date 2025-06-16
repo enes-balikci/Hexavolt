@@ -247,5 +247,54 @@ function doSearchAndUpdateWebGL() {
     updateWebGLFromSearch(results);
 }
 </script>
+    <!-- index.html dosyanda </body> etiketinden hemen önce ekle -->
+<script src="https://cdn.jsdelivr.net/npm/minisearch@6.4.0/dist/umd/index.min.js"></script>
+<script>
+let companies = []; // JSON'dan yüklenecek
+
+fetch('electricite_france.json')
+  .then(resp => resp.json())
+  .then(data => {
+    companies = data;
+    indexCompanies();
+    renderResults(companies);
+  });
+
+let miniSearch, results = [];
+
+function indexCompanies() {
+  miniSearch = new MiniSearch({
+    fields: ['nom', 'adresse', 'ville', 'site', 'siren', 'naf'], // aranacak alanlar
+    storeFields: ['nom', 'adresse', 'ville', 'site', 'siren', 'naf', 'date_creation', 'statut'] // gösterilecek alanlar
+  });
+  miniSearch.addAll(companies);
+}
+
+function searchCompanies(query) {
+  if(!miniSearch) return [];
+  if(!query.trim()) return companies;
+  return miniSearch.search(query, { prefix: true, fuzzy: 0.2 });
+}
+
+function renderResults(list) {
+  let html = `<p>${list.length} şirket bulundu</p><ul style="padding:0;list-style:none;">`;
+  list.forEach(c => {
+    html += `<li style="background:#232938;margin-bottom:10px;padding:10px;border-radius:7px;">
+      <strong>${c.nom}</strong> [${c.siren}]<br>
+      <small>${c.adresse || ""} ${c.ville || ""} ${c.cp || ""}</small><br>
+      <small>NAF: ${c.naf} | Statü: ${c.statut || ""} | Kuruluş: ${c.date_creation || ""}</small><br>
+      ${c.site ? `<a href="${c.site}" target="_blank" style="color:#5fffd6;">Web sitesini ziyaret et</a>` : ""}
+    </li>`;
+  });
+  html += "</ul>";
+  document.getElementById("results").innerHTML = html;
+}
+
+// Arama kutusu eklemiş olmalısın: <input id="searchBox" type="text">
+document.getElementById("searchBox").addEventListener("input", function() {
+  results = searchCompanies(this.value);
+  renderResults(results);
+});
+</script>
 </body>
 </html>
