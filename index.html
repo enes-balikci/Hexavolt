@@ -15,5 +15,70 @@
         <h1>Hexavolt</h1>
         <p>Bienvenue ! La plateforme Hexavolt sera bientôt disponible ici.</p>
     </div>
+    <!-- Lunr.js CDN (arama motoru için) -->
+<script src="https://unpkg.com/lunr/lunr.js"></script>
+<script>
+    // Örnek ürün verisi
+    const products = [
+        {
+            "id": 1,
+            "nom": "Prise électrique 16A",
+            "societe": "Legrand",
+            "reference": "LEG-1234",
+            "description": "Prise murale standard française, 16A, blanche.",
+            "categorie": "Prises",
+            "site": "https://www.legrand.fr"
+        },
+        {
+            "id": 2,
+            "nom": "Disjoncteur 20A",
+            "societe": "Schneider Electric",
+            "reference": "SCH-2345",
+            "description": "Disjoncteur modulaire, 20A, Courbe C.",
+            "categorie": "Disjoncteurs",
+            "site": "https://www.se.com/fr"
+        }
+        // Ürünleri çoğaltabilirsin...
+    ];
+
+    // Lunr.js ile arama indeksi oluşturma
+    const idx = lunr(function () {
+        this.ref('id');
+        this.field('nom');
+        this.field('societe');
+        this.field('reference');
+        this.field('description');
+        this.field('categorie');
+
+        products.forEach(function (doc) {
+            this.add(doc)
+        }, this)
+    });
+
+    // Arama kutusunu dinle
+    document.getElementById('searchBox').addEventListener('input', function() {
+        const query = this.value;
+        let html = "";
+        if(query.trim().length > 0){
+            const results = idx.search(query);
+            if(results.length === 0){
+                html = "<p>Aucun résultat trouvé.</p>";
+            } else {
+                html = "<ul style='padding:0;list-style:none'>";
+                results.forEach(result => {
+                    const prod = products.find(p => p.id == result.ref);
+                    html += `<li style="margin-bottom:22px;background:#232938;padding:18px;border-radius:8px;text-align:left;">
+                        <strong>${prod.nom}</strong> <span style="color:#5fffd6;">[${prod.societe}]</span><br>
+                        <small>Réf: ${prod.reference} | Catégorie: ${prod.categorie}</small><br>
+                        <span>${prod.description}</span><br>
+                        <a href="${prod.site}" target="_blank" style="color:#5fffd6;text-decoration:underline;">Voir le site</a>
+                    </li>`;
+                });
+                html += "</ul>";
+            }
+        }
+        document.getElementById('results').innerHTML = html;
+    });
+</script>
 </body>
 </html>
