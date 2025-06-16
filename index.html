@@ -22,171 +22,14 @@
         <div id="filters" style="margin-bottom:24px;"></div>
         <div id="results"></div>
     </div>
-    <script>
-        // Genişletilebilir ürün veri seti (örnek, daha fazlası eklenebilir)
-        const products = [
-            {
-                "id": 1,
-                "nom": "Prise électrique 16A",
-                "societe": "Legrand",
-                "reference": "LEG-1234",
-                "description": "Prise murale standard française, 16A, blanche.",
-                "categorie": "Prises",
-                "site": "https://www.legrand.fr",
-                "prix": 4.20,
-                "stock": 120,
-                "tags": ["prise", "16A", "murale", "blanche"]
-            },
-            {
-                "id": 2,
-                "nom": "Disjoncteur 20A",
-                "societe": "Schneider Electric",
-                "reference": "SCH-2345",
-                "description": "Disjoncteur modulaire, 20A, Courbe C, protection avancée.",
-                "categorie": "Disjoncteurs",
-                "site": "https://www.se.com/fr",
-                "prix": 12.90,
-                "stock": 60,
-                "tags": ["disjoncteur", "20A", "modulaire"]
-            },
-            {
-                "id": 3,
-                "nom": "Interrupteur va-et-vient",
-                "societe": "Hager",
-                "reference": "HAG-4567",
-                "description": "Interrupteur simple, finition aluminium.",
-                "categorie": "Interrupteurs",
-                "site": "https://www.hager.fr",
-                "prix": 7.50,
-                "stock": 200,
-                "tags": ["interrupteur", "va-et-vient", "aluminium"]
-            },
-            {
-                "id": 4,
-                "nom": "Boîte d'encastrement",
-                "societe": "Legrand",
-                "reference": "LEG-5678",
-                "description": "Boîte pour installation murale, Ø67mm.",
-                "categorie": "Accessoires",
-                "site": "https://www.legrand.fr",
-                "prix": 1.20,
-                "stock": 500,
-                "tags": ["boîte", "encastrement", "murale"]
-            },
-            {
-                "id": 5,
-                "nom": "Gaine ICTA 16mm",
-                "societe": "Courant",
-                "reference": "COU-8910",
-                "description": "Gaine annelée pour câblage, 16mm, 100m.",
-                "categorie": "Gaines",
-                "site": "https://www.courant.fr",
-                "prix": 38.00,
-                "stock": 35,
-                "tags": ["gaine", "ICTA", "16mm", "câblage"]
-            }
-            // ...daha fazla ürün eklenebilir
-        ];
-
-        // Facet/filtresi için yardımcı
-        function getFacets(list, field) {
-            const counts = {};
-            list.forEach(item => {
-                if(!counts[item[field]]) counts[item[field]] = 0;
-                counts[item[field]]++;
-            });
-            return Object.entries(counts).map(([val, count]) => ({val, count}));
-        }
-
-        // MiniSearch ile index oluşturma
-        const miniSearch = new MiniSearch({
-            fields: ['nom', 'societe', 'reference', 'description', 'categorie', 'tags'], // indexlenecek alanlar
-            storeFields: ['nom', 'societe', 'reference', 'description', 'categorie', 'site', 'prix', 'stock', 'tags'], // sonuçlarda gösterilecekler
-            searchOptions: {
-                boost: { nom: 6, categorie: 3, societe: 3, tags: 4, description: 2, reference: 4 },
-                fuzzy: 0.2, // yazım hatalarını tolere et
-                prefix: true // kelime başı eşleşmeleri de bul
-            }
-        });
-        miniSearch.addAll(products);
-
-        // Facet filtreleri oluştur
-        function renderFilters(selected = {}) {
-            let html = '<strong>Filtrer par:</strong><br>';
-            // Facet: Catégorie
-            const catFacets = getFacets(products, 'categorie');
-            html += 'Catégorie: <select id="catFilter"><option value="">Toutes</option>';
-            catFacets.forEach(f => {
-                html += `<option value="${f.val}" ${selected.categorie===f.val?'selected':''}>${f.val} (${f.count})</option>`;
-            });
-            html += '</select> ';
-            // Facet: Société
-            const socFacets = getFacets(products, 'societe');
-            html += 'Société: <select id="socFilter"><option value="">Toutes</option>';
-            socFacets.forEach(f => {
-                html += `<option value="${f.val}" ${selected.societe===f.val?'selected':''}>${f.val} (${f.count})</option>`;
-            });
-            html += '</select>';
-            document.getElementById('filters').innerHTML = html;
-        }
-
-        // Sonuçları göster
-        function renderResults(results, highlight = {}) {
-            let html = '';
-            if(results.length === 0){
-                html = "<p>Aucun résultat trouvé.</p>";
-            } else {
-                html = `<p style="opacity:.7">${results.length} résultat(s) trouvé(s)</p><ul style='padding:0;list-style:none'>`;
-                results.forEach(res => {
-                    const prod = res;
-                    // Vurgulu eşleşme snippet'i
-                    let name = prod.nom;
-                    if(res._highlights && res._highlights.nom) name = res._highlights.nom;
-                    html += `<li style="margin-bottom:22px;background:#232938;padding:18px;border-radius:8px;text-align:left;">
-                        <strong>${name}</strong> <span style="color:#5fffd6;">[${prod.societe}]</span><br>
-                        <small>Réf: ${prod.reference} | Catégorie: ${prod.categorie}</small><br>
-                        <span>${prod.description}</span><br>
-                        <span style="color:#8af;font-size:.95em;">Prix: ${prod.prix.toFixed(2)} € | Stock: ${prod.stock}</span><br>
-                        <a href="${prod.site}" target="_blank" style="color:#5fffd6;text-decoration:underline;">Voir le site</a>
-                    </li>`;
-                });
-                html += "</ul>";
-            }
-            document.getElementById('results').innerHTML = html;
-        }
-
-        // Arama ve filtreleme işlemi
-        function searchAndFilter() {
-            const query = document.getElementById('searchBox').value;
-            const cat = document.getElementById('catFilter').value;
-            const soc = document.getElementById('socFilter').value;
-
-            let results = query.trim().length > 0
-                ? miniSearch.search(query, { combineWith: "AND", extractField: (doc, fieldName) => doc[fieldName] })
-                : products.map(p => ({ ...p, id: p.id }));
-
-            // Facet filtreleri uygula
-            if(cat) results = results.filter(r => r.categorie === cat);
-            if(soc) results = results.filter(r => r.societe === soc);
-
-            // vurgulu snippet ekle (MiniSearch 6.4.0+, _highlights ile)
-            renderResults(results);
-        }
-
-        // Filtre değişimlerinde çalıştır
-        document.addEventListener('DOMContentLoaded', function(){
-            renderFilters();
-            renderResults(products);
-            document.getElementById('searchBox').addEventListener('input', searchAndFilter);
-            document.getElementById('filters').addEventListener('change', searchAndFilter);
-        });
-    </script>
-    <script>
-/* --- WebGL teknik indexleme görselleştirmesi için üç boyutlu arayüz --- */
+  <script>
+/* --- WebGL teknik indexleme görselleştirmesi için gelişmiş animasyonlar --- */
 
 // (products dizininde en az 5-10 ürün olmalı, yukarıdaki MiniSearch örneğiyle uyumlu olmalı)
 const canvasDiv = document.getElementById('webgl-canvas');
-let renderer, scene, camera, controls, pickableObjects = [], raycaster, mouse, INTERSECTED;
+let renderer, scene, camera, pickableObjects = [], raycaster, mouse, INTERSECTED, clock;
+let orbitAngle = 0, orbitSpeed = 0.16, cameraTarget = new THREE.Vector3(0,0,0);
+let particles, particleSystem;
 
 // THREE.js başlat
 function initWebGL(productsToShow) {
@@ -204,7 +47,7 @@ function initWebGL(productsToShow) {
     // Scene ve Camera
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(60, canvasDiv.clientWidth/canvasDiv.clientHeight, 0.1, 1000);
-    camera.position.set(0, 0, 40);
+    camera.position.set(0, 0, 48);
 
     // Işıklar
     scene.add(new THREE.AmbientLight(0xffffff, 1));
@@ -215,24 +58,34 @@ function initWebGL(productsToShow) {
     // Pickable nesneler
     pickableObjects = [];
 
-    // Ürünleri 3D uzaya dağıt (dairesel veya grid)
+    // Ürünleri 3D uzaya spiral/dairesel dağıt
     const N = productsToShow.length;
-    const rad = 12 + Math.min(18, N*1.5);
+    const rad = 14 + Math.min(20, N*1.3);
     productsToShow.forEach((prod, i) => {
-        const angle = (i/N) * Math.PI*2;
+        const t = i/N;
+        const angle = t * Math.PI*2*1.8 + Math.sin(i*1.3) * 0.25;
+        const y = Math.sin(t*Math.PI*1.1) * 11 + Math.sin(angle*2)*3;
         const geo = new THREE.BoxGeometry(2,2,2);
-        const mat = new THREE.MeshPhongMaterial({
+        const mat = new THREE.MeshPhysicalMaterial({
             color: 0x5fffd6, 
             emissive: 0x141d22,
-            shininess: 80,
-            transparent:true, opacity:0.85
+            roughness: 0.3,
+            metalness: 0.6,
+            reflectivity: 0.7,
+            transmission: 0.14,
+            thickness: 0.9,
+            transparent:true, opacity:0.9,
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.18,
+            iridescence: 0.18
         });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(
             Math.cos(angle)*rad, 
-            Math.sin(angle)*rad, 
-            Math.sin(angle*2)*rad/5
+            y, 
+            Math.sin(angle)*rad
         );
+        mesh.rotation.set(Math.sin(angle)*0.7, angle, 0);
         mesh.userData = prod;
         scene.add(mesh);
         pickableObjects.push(mesh);
@@ -251,29 +104,48 @@ function initWebGL(productsToShow) {
         const labelMat = new THREE.SpriteMaterial({map:tex, transparent:true});
         const label = new THREE.Sprite(labelMat);
         label.scale.set(6,1.6,1);
-        label.position.copy(mesh.position).add(new THREE.Vector3(0,2,0));
+        label.position.copy(mesh.position).add(new THREE.Vector3(0,2.8,0));
         scene.add(label);
+        mesh.userData.label = label;
     });
+
+    // Animasyonlu arka plan için partikül sistemi
+    const particleCount = 220;
+    const positions = [];
+    const colors = [];
+    for(let i=0;i<particleCount;i++){
+        const angle = Math.random()*Math.PI*2;
+        const r = rad + 7 + Math.random()*24;
+        const y = (Math.random()-0.5) * 30;
+        positions.push(Math.cos(angle)*r, y, Math.sin(angle)*r);
+        const glow = Math.random()*0.5+0.5;
+        colors.push(0.3*glow, 1*glow, 0.8*glow);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const material = new THREE.PointsMaterial({
+        size: 0.85, vertexColors: true, transparent:true, opacity:0.6, blending:THREE.AdditiveBlending
+    });
+    particleSystem = new THREE.Points(geometry, material);
+    scene.add(particleSystem);
 
     // Raycaster
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
+    clock = new THREE.Clock();
 
-    // Kamera kontrolleri (isteğe bağlı: mouse drag için)
-    // Basit kontrol (rotate için)
+    // Kamera kontrolleri (orbit)
     let isDragging = false, lastX=0, lastY=0, azimuth=0, polar=0;
     canvasDiv.onmousedown = (e) => { isDragging=true; lastX=e.clientX; lastY=e.clientY; };
     canvasDiv.onmouseup = () => { isDragging=false; };
+    canvasDiv.onmouseleave = () => { isDragging=false; };
     canvasDiv.onmousemove = (e) => {
         if(isDragging){
-            azimuth += (e.clientX-lastX)*0.013;
-            polar += (e.clientY-lastY)*0.013;
+            azimuth += (e.clientX-lastX)*0.012;
+            polar += (e.clientY-lastY)*0.012;
             polar = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2-0.1, polar));
             lastX=e.clientX; lastY=e.clientY;
-            camera.position.x = Math.sin(azimuth)*Math.cos(polar)*40;
-            camera.position.y = Math.sin(polar)*40;
-            camera.position.z = Math.cos(azimuth)*Math.cos(polar)*40;
-            camera.lookAt(0,0,0);
         }
     };
 
@@ -294,15 +166,49 @@ function initWebGL(productsToShow) {
         }
     });
 
-    // Animasyon döngüsü & highlight
+    // Animasyon döngüsü & highlight & kutu animasyonları
     function animate() {
         requestAnimationFrame(animate);
+        const dt = clock.getDelta();
+        const t = clock.getElapsedTime();
+
+        // Kamera otomatik döndürme
+        orbitAngle += orbitSpeed * dt;
+        camera.position.x = Math.sin(azimuth+orbitAngle)*Math.cos(polar)*48;
+        camera.position.y = Math.sin(polar)*48;
+        camera.position.z = Math.cos(azimuth+orbitAngle)*Math.cos(polar)*48;
+        camera.lookAt(cameraTarget);
+
+        // Partikül hareketi (hafif dalgalanma)
+        const posAttr = particleSystem.geometry.getAttribute('position');
+        for(let i=0;i<posAttr.count;i++){
+            let x = posAttr.getX(i);
+            let y = posAttr.getY(i);
+            let z = posAttr.getZ(i);
+            let freq = 0.5 + (i%7)*0.03;
+            posAttr.setY(i, y + Math.sin(t*freq + i)*0.04);
+        }
+        posAttr.needsUpdate = true;
+
+        // Kutu animasyonları (her biri döner, puls efekti ve hover)
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObjects(pickableObjects);
-        pickableObjects.forEach(obj => obj.material.emissive.setHex(0x141d22));
+        pickableObjects.forEach((obj, idx) => {
+            let pulse = Math.sin(t*2.4 + idx)*0.12 + 1;
+            obj.scale.set(pulse, pulse, pulse);
+            obj.rotation.y += dt*0.6 + Math.sin(idx+t)*0.01;
+            obj.material.emissiveIntensity = 0.8;
+            obj.material.opacity = 0.8 + Math.sin(t+idx)*0.18;
+            obj.userData.label.material.opacity = 0.6 + 0.3*Math.abs(Math.sin(t+idx));
+        });
         if(intersects.length>0) {
-            intersects[0].object.material.emissive.setHex(0x00ff88);
+            let hoverObj = intersects[0].object;
+            hoverObj.material.emissive.setHex(0x00ffd6);
+            hoverObj.material.opacity = 1.0;
+            hoverObj.scale.set(1.42,1.42,1.42);
+            hoverObj.userData.label.material.opacity = 1;
         }
+
         renderer.render(scene, camera);
     }
     animate();
