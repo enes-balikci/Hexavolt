@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hexavolt</title>
     <link rel="stylesheet" href="style.css">
+    <!-- MiniSearch CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/minisearch@6.4.0/dist/umd/index.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -13,72 +15,169 @@
             <text x="50%" y="60%" text-anchor="middle" fill="#181c24" font-size="36px" font-family="Arial" dy=".3em">H</text>
         </svg>
         <h1>Hexavolt</h1>
-        <p>Bienvenue ! La plateforme Hexavolt sera bientôt disponible ici.</p>
+        <p>Indexation technique avancée du matériel électrique en France.</p>
+        <input type="text" id="searchBox" placeholder="Rechercher un produit, une marque, une référence..." style="width:100%;padding:12px 8px;font-size:1em;margin:30px 0 20px 0;">
+        <div id="filters" style="margin-bottom:24px;"></div>
+        <div id="results"></div>
     </div>
-    <!-- Lunr.js CDN (arama motoru için) -->
-<script src="https://unpkg.com/lunr/lunr.js"></script>
-<script>
-    // Örnek ürün verisi
-    const products = [
-        {
-            "id": 1,
-            "nom": "Prise électrique 16A",
-            "societe": "Legrand",
-            "reference": "LEG-1234",
-            "description": "Prise murale standard française, 16A, blanche.",
-            "categorie": "Prises",
-            "site": "https://www.legrand.fr"
-        },
-        {
-            "id": 2,
-            "nom": "Disjoncteur 20A",
-            "societe": "Schneider Electric",
-            "reference": "SCH-2345",
-            "description": "Disjoncteur modulaire, 20A, Courbe C.",
-            "categorie": "Disjoncteurs",
-            "site": "https://www.se.com/fr"
+    <script>
+        // Genişletilebilir ürün veri seti (örnek, daha fazlası eklenebilir)
+        const products = [
+            {
+                "id": 1,
+                "nom": "Prise électrique 16A",
+                "societe": "Legrand",
+                "reference": "LEG-1234",
+                "description": "Prise murale standard française, 16A, blanche.",
+                "categorie": "Prises",
+                "site": "https://www.legrand.fr",
+                "prix": 4.20,
+                "stock": 120,
+                "tags": ["prise", "16A", "murale", "blanche"]
+            },
+            {
+                "id": 2,
+                "nom": "Disjoncteur 20A",
+                "societe": "Schneider Electric",
+                "reference": "SCH-2345",
+                "description": "Disjoncteur modulaire, 20A, Courbe C, protection avancée.",
+                "categorie": "Disjoncteurs",
+                "site": "https://www.se.com/fr",
+                "prix": 12.90,
+                "stock": 60,
+                "tags": ["disjoncteur", "20A", "modulaire"]
+            },
+            {
+                "id": 3,
+                "nom": "Interrupteur va-et-vient",
+                "societe": "Hager",
+                "reference": "HAG-4567",
+                "description": "Interrupteur simple, finition aluminium.",
+                "categorie": "Interrupteurs",
+                "site": "https://www.hager.fr",
+                "prix": 7.50,
+                "stock": 200,
+                "tags": ["interrupteur", "va-et-vient", "aluminium"]
+            },
+            {
+                "id": 4,
+                "nom": "Boîte d'encastrement",
+                "societe": "Legrand",
+                "reference": "LEG-5678",
+                "description": "Boîte pour installation murale, Ø67mm.",
+                "categorie": "Accessoires",
+                "site": "https://www.legrand.fr",
+                "prix": 1.20,
+                "stock": 500,
+                "tags": ["boîte", "encastrement", "murale"]
+            },
+            {
+                "id": 5,
+                "nom": "Gaine ICTA 16mm",
+                "societe": "Courant",
+                "reference": "COU-8910",
+                "description": "Gaine annelée pour câblage, 16mm, 100m.",
+                "categorie": "Gaines",
+                "site": "https://www.courant.fr",
+                "prix": 38.00,
+                "stock": 35,
+                "tags": ["gaine", "ICTA", "16mm", "câblage"]
+            }
+            // ...daha fazla ürün eklenebilir
+        ];
+
+        // Facet/filtresi için yardımcı
+        function getFacets(list, field) {
+            const counts = {};
+            list.forEach(item => {
+                if(!counts[item[field]]) counts[item[field]] = 0;
+                counts[item[field]]++;
+            });
+            return Object.entries(counts).map(([val, count]) => ({val, count}));
         }
-        // Ürünleri çoğaltabilirsin...
-    ];
 
-    // Lunr.js ile arama indeksi oluşturma
-    const idx = lunr(function () {
-        this.ref('id');
-        this.field('nom');
-        this.field('societe');
-        this.field('reference');
-        this.field('description');
-        this.field('categorie');
+        // MiniSearch ile index oluşturma
+        const miniSearch = new MiniSearch({
+            fields: ['nom', 'societe', 'reference', 'description', 'categorie', 'tags'], // indexlenecek alanlar
+            storeFields: ['nom', 'societe', 'reference', 'description', 'categorie', 'site', 'prix', 'stock', 'tags'], // sonuçlarda gösterilecekler
+            searchOptions: {
+                boost: { nom: 6, categorie: 3, societe: 3, tags: 4, description: 2, reference: 4 },
+                fuzzy: 0.2, // yazım hatalarını tolere et
+                prefix: true // kelime başı eşleşmeleri de bul
+            }
+        });
+        miniSearch.addAll(products);
 
-        products.forEach(function (doc) {
-            this.add(doc)
-        }, this)
-    });
+        // Facet filtreleri oluştur
+        function renderFilters(selected = {}) {
+            let html = '<strong>Filtrer par:</strong><br>';
+            // Facet: Catégorie
+            const catFacets = getFacets(products, 'categorie');
+            html += 'Catégorie: <select id="catFilter"><option value="">Toutes</option>';
+            catFacets.forEach(f => {
+                html += `<option value="${f.val}" ${selected.categorie===f.val?'selected':''}>${f.val} (${f.count})</option>`;
+            });
+            html += '</select> ';
+            // Facet: Société
+            const socFacets = getFacets(products, 'societe');
+            html += 'Société: <select id="socFilter"><option value="">Toutes</option>';
+            socFacets.forEach(f => {
+                html += `<option value="${f.val}" ${selected.societe===f.val?'selected':''}>${f.val} (${f.count})</option>`;
+            });
+            html += '</select>';
+            document.getElementById('filters').innerHTML = html;
+        }
 
-    // Arama kutusunu dinle
-    document.getElementById('searchBox').addEventListener('input', function() {
-        const query = this.value;
-        let html = "";
-        if(query.trim().length > 0){
-            const results = idx.search(query);
+        // Sonuçları göster
+        function renderResults(results, highlight = {}) {
+            let html = '';
             if(results.length === 0){
                 html = "<p>Aucun résultat trouvé.</p>";
             } else {
-                html = "<ul style='padding:0;list-style:none'>";
-                results.forEach(result => {
-                    const prod = products.find(p => p.id == result.ref);
+                html = `<p style="opacity:.7">${results.length} résultat(s) trouvé(s)</p><ul style='padding:0;list-style:none'>`;
+                results.forEach(res => {
+                    const prod = res;
+                    // Vurgulu eşleşme snippet'i
+                    let name = prod.nom;
+                    if(res._highlights && res._highlights.nom) name = res._highlights.nom;
                     html += `<li style="margin-bottom:22px;background:#232938;padding:18px;border-radius:8px;text-align:left;">
-                        <strong>${prod.nom}</strong> <span style="color:#5fffd6;">[${prod.societe}]</span><br>
+                        <strong>${name}</strong> <span style="color:#5fffd6;">[${prod.societe}]</span><br>
                         <small>Réf: ${prod.reference} | Catégorie: ${prod.categorie}</small><br>
                         <span>${prod.description}</span><br>
+                        <span style="color:#8af;font-size:.95em;">Prix: ${prod.prix.toFixed(2)} € | Stock: ${prod.stock}</span><br>
                         <a href="${prod.site}" target="_blank" style="color:#5fffd6;text-decoration:underline;">Voir le site</a>
                     </li>`;
                 });
                 html += "</ul>";
             }
+            document.getElementById('results').innerHTML = html;
         }
-        document.getElementById('results').innerHTML = html;
-    });
-</script>
+
+        // Arama ve filtreleme işlemi
+        function searchAndFilter() {
+            const query = document.getElementById('searchBox').value;
+            const cat = document.getElementById('catFilter').value;
+            const soc = document.getElementById('socFilter').value;
+
+            let results = query.trim().length > 0
+                ? miniSearch.search(query, { combineWith: "AND", extractField: (doc, fieldName) => doc[fieldName] })
+                : products.map(p => ({ ...p, id: p.id }));
+
+            // Facet filtreleri uygula
+            if(cat) results = results.filter(r => r.categorie === cat);
+            if(soc) results = results.filter(r => r.societe === soc);
+
+            // vurgulu snippet ekle (MiniSearch 6.4.0+, _highlights ile)
+            renderResults(results);
+        }
+
+        // Filtre değişimlerinde çalıştır
+        document.addEventListener('DOMContentLoaded', function(){
+            renderFilters();
+            renderResults(products);
+            document.getElementById('searchBox').addEventListener('input', searchAndFilter);
+            document.getElementById('filters').addEventListener('change', searchAndFilter);
+        });
+    </script>
 </body>
 </html>
